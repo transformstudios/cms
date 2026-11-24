@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import * as Globals from '@/bootstrap/globals';
 import HiddenFieldtype from '@/components/fieldtypes/HiddenFieldtype.vue';
@@ -25,10 +25,11 @@ const fields = [
 ];
 
 let previews;
+let setFieldValue;
 
 const Probe = defineComponent({
     setup() {
-        previews = injectContainerContext().previews;
+        ({ previews, setFieldValue } = injectContainerContext());
         return () => h('div');
     },
 });
@@ -91,4 +92,53 @@ test('field ids are unique across publish containers', async () => {
 
     expect(outer.find('#field_outer_scheme').exists()).toBe(true);
     expect(inner.find('#field_inner_scheme').exists()).toBe(true);
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+function fieldEvents(emit) {
+    return emit.mock.calls.filter(([name]) => name.startsWith('publish-field-'));
+}
+
+test('an event is emitted when a field is created and destroyed', async () => {
+    const emit = vi.spyOn(window.Statamic.$events, '$emit');
+
+    const wrapper = await mountFields({ protected: true, scheme: 'password' }, {}, { name: 'form' });
+
+    expect(fieldEvents(emit)[1]).toEqual([
+        'publish-field-created',
+        { container: 'form', path: 'scheme', handle: 'scheme', config: fields[1], value: 'password' },
+    ]);
+
+    wrapper.unmount();
+
+    expect(fieldEvents(emit).slice(-2).map(([name, { path }]) => [name, path])).toEqual([
+        ['publish-field-destroyed', 'protected'],
+        ['publish-field-destroyed', 'scheme'],
+    ]);
+});
+
+test('an event is emitted when the value of a field changes, whoever changes it', async () => {
+    const emit = vi.spyOn(window.Statamic.$events, '$emit');
+    const wrapper = await mountFields({ protected: true, scheme: 'password' });
+
+    wrapper.findComponent(HiddenFieldtype).vm.$emit('update:value', 'fieldtype');
+    await nextTick();
+    setFieldValue('scheme', 'code');
+    await nextTick();
+
+    expect(fieldEvents(emit).filter(([name]) => name === 'publish-field-updated').map(([, { path, value }]) => [path, value])).toEqual([
+        ['scheme', 'fieldtype'],
+        ['scheme', 'code'],
+    ]);
+});
+
+test('no event is emitted when a value is set to what it already is', async () => {
+    const emit = vi.spyOn(window.Statamic.$events, '$emit');
+    await mountFields({ protected: true, scheme: 'password' });
+
+    setFieldValue('scheme', 'password');
+    await nextTick();
+
+    expect(fieldEvents(emit).filter(([name]) => name === 'publish-field-updated')).toEqual([]);
 });

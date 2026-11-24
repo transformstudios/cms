@@ -1,5 +1,5 @@
 <script setup>
-import { computed, useTemplateRef, watch, ref, inject } from 'vue';
+import { computed, useTemplateRef, watch, ref, inject, onMounted, onUnmounted } from 'vue';
 import { injectContainerContext } from './Container.vue';
 import { injectFieldsContext } from './FieldsProvider.vue';
 import { useUiDirection } from '@/composables/ui-direction';
@@ -102,6 +102,20 @@ const fieldActions = computed(() => {
 const shouldShowFieldActions = computed(() => {
     return props.config.actions && fieldActions.value?.length > 0;
 });
+
+function emitFieldEvent(name) {
+    Statamic.$events.$emit(name, {
+        container: containerName.value,
+        path: fullPath.value,
+        handle,
+        config: props.config,
+        value: value.value,
+    });
+}
+
+onMounted(() => emitFieldEvent('publish-field-created'));
+onUnmounted(() => emitFieldEvent('publish-field-destroyed'));
+watch(value, () => emitFieldEvent('publish-field-updated'));
 
 function valueUpdated(value) {
     const existingValue = data_get(containerValues.value, fullPath.value);

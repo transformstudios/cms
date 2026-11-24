@@ -565,6 +565,8 @@ export default {
             const deepCopy = JSON.parse(JSON.stringify(data.defaults));
             const values = Object.assign({}, { type: handle }, deepCopy);
 
+            Statamic.$events.$emit('bard-set-adding', { values, handle, id, config: this.config });
+
             this.updateSetMeta(id, data.new);
 
             const { $head } = this.editor.view.state.selection;

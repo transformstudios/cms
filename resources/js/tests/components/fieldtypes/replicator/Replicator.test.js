@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import * as Globals from '@/bootstrap/globals';
 import Replicator from '@/components/fieldtypes/replicator/Replicator.vue';
 import { containerContextKey } from '@/components/ui/Publish/Container.vue';
@@ -63,4 +63,24 @@ test('collapsing a set persists the collapsed state to meta', async () => {
     await wrapper.vm.$nextTick();
 
     expect(lastMeta(wrapper).collapsed).toEqual(['set-2']);
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+test('listeners can adjust a new set before it is added', async () => {
+    vi.stubGlobal('Statamic', {
+        $events: {
+            $emit: (name, payload) => {
+                if (name === 'replicator-set-adding') payload.set.title = `${payload.handle} at ${payload.index}`;
+            },
+        },
+    });
+    const wrapper = mountField([]);
+
+    wrapper.vm._addSet('card', 1, { defaults: { title: null }, new: {} });
+    await wrapper.vm.$nextTick();
+
+    const added = wrapper.emitted('update:value').at(-1)[0][1];
+
+    expect(added).toMatchObject({ type: 'card', title: 'card at 1' });
 });

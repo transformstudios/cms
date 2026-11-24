@@ -195,6 +195,8 @@ export default {
 
             row._id = id;
 
+            Statamic.$events.$emit('grid-row-adding', { row, config: this.config });
+
             this.updateRowMeta(id, this.meta.new);
             this.update([...this.value, row]);
         },

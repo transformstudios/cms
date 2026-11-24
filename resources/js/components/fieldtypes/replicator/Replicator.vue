@@ -243,6 +243,8 @@ export default {
                 enabled: true,
             };
 
+            Statamic.$events.$emit('replicator-set-adding', { set, handle, index, config: this.config });
+
             this.updateSetMeta(set._id, data.new);
 
             this.$nextTick(() => {
